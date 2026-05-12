@@ -5,7 +5,7 @@ import { componentTagger } from "lovable-tagger";
 import fs from "fs";
 
 export default defineConfig(({ mode }) => ({
-  base: mode === "production" ? "/civic-voice-ai/" : "/",
+  base: mode === "production" ? "/canodrom-civic-ai/" : "/",
 
   server: {
     host: "::",
