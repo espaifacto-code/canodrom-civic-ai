@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { BarChart3, FileSearch, GitBranchPlus, Eye, Menu, X } from "lucide-react";
+import { BarChart3, FileSearch, GitBranchPlus, Eye, Menu, X, ClipboardList } from "lucide-react";
 
 const navItems = [
   { to: "/dashboard",    label: "Dashboard",        icon: BarChart3 },
-  { to: "/explorer",     label: "Proposals",         icon: FileSearch },
+  { to: "/responses",    label: "Respuestas",        icon: ClipboardList },
   { to: "/process",      label: "Process Flow",      icon: GitBranchPlus },
   { to: "/transparency", label: "AI Transparency",   icon: Eye },
 ];

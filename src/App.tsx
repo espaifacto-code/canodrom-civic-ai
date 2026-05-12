@@ -8,6 +8,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import Dashboard from "@/pages/Dashboard";
 import Explorer from "@/pages/Explorer";
+import Responses from "@/pages/Responses";
 import ProcessDiagram from "@/pages/ProcessDiagram";
 import Index from "@/pages/Index";
 import NotFound from "./pages/NotFound";
@@ -57,6 +58,7 @@ const AppShell = () => {
           <Route path="/" element={<Index />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/explorer" element={<Explorer />} />
+          <Route path="/responses" element={<Responses />} />
           <Route path="/process" element={<ProcessDiagram />} />
           <Route
             path="/transparency"

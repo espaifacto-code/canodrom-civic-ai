@@ -15,89 +15,95 @@ Legend: ✅ Done · 🔄 In progress · ⬜ Pending · 🔥 Blocking
 - ✅ Vite base path → `/canodrom-civic-ai/`
 - ✅ Pushed to GitHub (`espaifacto-code/canodrom-civic-ai`)
 - ⬜ Enable GitHub Pages in repo settings (Settings → Pages → GitHub Actions)
-- ⬜ Run `bun install` locally in `canodrom-civic-ai`
-- ⬜ Confirm app runs: `bun dev`
 
 ---
 
-## 2. Supabase — New Canodrom Project
+## 2. Supabase — Canodrom Project
 
-- ⬜ Create new Supabase project (name: `canodrom-workshop`)
-- ⬜ Run migration to create `civic_records` table (file: `supabase/migrations/`)
-- ⬜ Copy new project URL + anon key into `.env`
-- ⬜ Test connection: dashboard loads data
-
----
-
-## 3. Dashboard — Ready for 13 May meeting 🔥
-
-- ✅ Add QR code panel → links to `tally.so/r/9qpyWG`
-- ✅ Update issue categories to tourism topics (Vivienda, Espacio público, Transporte, Identidad, Comercio local, Ruido, Limpieza, Derecho a la ciudad)
-- ✅ Replace "Manual Trigger" tab with prominent **"¡Iniciar pipeline!"** button in header
-- ✅ Supabase URL fixed (removed `/rest/v1/` suffix)
-- ✅ ManualTrigger form translated to Spanish
-- ⬜ Live submissions list visible on main view (not hidden in a tab)
-- ⬜ Language labels: Spanish / Catalan / English
+- ✅ New Supabase project created (`efvbridamwouyvakfnai`)
+- ✅ `form_responses` table created with RLS policies
+- ✅ `.env` credentials updated (URL + publishable key)
+- ✅ 8 seed records inserted for testing
+- ✅ Edge Function `tally-webhook` deployed (--no-verify-jwt)
+- ✅ Tally webhook configured → `https://efvbridamwouyvakfnai.supabase.co/functions/v1/tally-webhook`
+- ✅ Real Tally submissions arriving correctly
+- ✅ UUID → label fix deployed (resolves option IDs via field.options map)
 
 ---
 
-## 4. n8n Pipeline — Workshop Outputs
+## 3. Dashboard ✅
 
-- ⬜ Duplicate existing workflow in n8n
-- ⬜ Update Tally webhook trigger → new form ID (`9qpyWG`)
-- ⬜ Update Supabase node credentials → new Canodrom project
-- ⬜ Adapt AI system prompts:
-  - Topic: mass tourism in Barcelona
-  - Language: Spanish / Catalan
-  - Context: right to the city, urban sovereignty, coexistence
-- ⬜ Add new output node: **Instagram post** (ironic, addressed to the mayor)
-- ⬜ Add new output node: **A4 PDF poster** (printable, 3 proposals, for neighbours)
-- ⬜ Store new outputs in Supabase (new columns or table)
-- ⬜ Test full pipeline end-to-end with one test submission
+- ✅ QR code panel → links to `tally.so/r/9qpyWG`
+- ✅ `¡Iniciar pipeline!` button in header
+- ✅ Bar chart: efectos más preocupantes (top_effects)
+- ✅ Bar chart: actores relevantes (relevant_actors)
+- ✅ Radar + scores numéricos: 6 ejes de relevancia
+- ✅ Lista de propuestas abiertas
+- ✅ Lista de todas las respuestas con timestamps
+- ✅ Real-time via Supabase channel + 10s polling
+- ✅ Estado vacío elegante mientras no hay respuestas
 
 ---
 
-## 5. RAG / Context Documents
+## 4. Pestaña Respuestas ✅
 
-- ⬜ Gather relevant documents:
-  - Barcelona tourism regulation plans
-  - Canodrom manifesto / programme
-  - District council reports (relevant neighbourhood)
-- ⬜ Upload documents to vector DB (embeddings)
-- ⬜ Test retrieval in n8n pipeline
+- ✅ Página `/responses` creada
+- ✅ Stats resumen: participantes, con propuesta, con referente, relevancia media
+- ✅ Cards colapsables por respuesta
+- ✅ Detalle expandible: efectos, actores, barras de relevancia, propuesta, buena práctica
+- ✅ Navbar actualizado con pestaña "Respuestas"
 
 ---
 
-## 6. Frontend — Workshop Outputs Display
+## 5. n8n Pipeline — Workshop Outputs
 
-- ⬜ Install `react-qr-code` (`bun add react-qr-code`)
-- ⬜ Dashboard panel: show generated Instagram post per submission
-- ⬜ Dashboard panel: show PDF poster preview / download link
-- ⬜ Explorer page: update to show tourism-specific fields
-- ⬜ PDF submissions as public embeds (open to public)
+- ⬜ Duplicar workflow existente en n8n
+- ⬜ Trigger: Webhook manual desde dashboard (botón "¡Iniciar pipeline!")
+- ⬜ Nodo Supabase: leer `form_responses` donde `processed = false`
+- ⬜ Adaptar prompts de IA al contexto turismo Barcelona
+- ⬜ Output 1: **Post de Instagram** — irónico, dirigido al alcalde
+- ⬜ Output 2: **PDF / Poster A4** — 3 propuestas para vecinos, imprimible
+- ⬜ Marcar registros como `processed = true` tras generar
+- ⬜ Test end-to-end con una respuesta real
+- 📄 Ver guía completa: `N8N_SETUP.md`
+
+---
+
+## 6. RAG / Documentos de Contexto
+
+- ⬜ Recopilar documentos relevantes:
+  - Plan de regulación turística de Barcelona
+  - Manifiesto / programa del Canodrom
+  - Informes del consejo de distrito
+- ⬜ Subir a vector DB (embeddings)
+- ⬜ Conectar retrieval en pipeline n8n
 
 ---
 
 ## 7. Deployment
 
-- ⬜ GitHub Pages auto-deploy working (push to `main` → deploys)
-- ⬜ Confirm live URL: `https://espaifacto-code.github.io/canodrom-civic-ai/`
-- ⬜ Share URL with Canodrom team before workshop
+- ⬜ GitHub Pages auto-deploy (push a `main` → despliega)
+- ⬜ Confirmar URL live: `https://espaifacto-code.github.io/canodrom-civic-ai/`
+- ⬜ Compartir URL con equipo Canodrom antes del workshop
 
 ---
 
-## 8. Workshop Day
+## 8. Día del Workshop
 
-- ⬜ Test full flow with 2-3 test participants before session
-- ⬜ QR code printed or on screen for participants to scan
-- ⬜ Facilitator knows how to press "Start Pipeline" after all submissions
-- ⬜ Screen ready to show live dashboard during session
-- ⬜ Printed A4 posters ready as workshop output
+- ⬜ Test completo con 2-3 participantes de prueba antes de la sesión
+- ⬜ QR impreso o en pantalla para que los participantes escaneen
+- ⬜ Facilitador sabe cuándo pulsar "Iniciar pipeline" (al acabar todos de rellenar)
+- ⬜ Pantalla lista para mostrar dashboard en directo durante la sesión
+- ⬜ Posters A4 impresos como output del workshop
 
 ---
 
 ## Done log
 
-| Date | What |
-|------|------|
-| 12 May | Project forked, branding updated, Tally URL fixed, pushed to GitHub |
+| Fecha | Qué |
+|-------|-----|
+| 12 May 2026 | Proyecto forked, branding actualizado, Tally URL fijada, push a GitHub |
+| 12 May 2026 | Supabase: tabla form_responses, Edge Function tally-webhook desplegada |
+| 12 May 2026 | Dashboard reescrito: gráficas, radar, propuestas, QR, botón pipeline |
+| 12 May 2026 | Fix UUID→label: resolveCheckbox con field.options map |
+| 12 May 2026 | Pestaña Respuestas: cards colapsables con detalle completo por participante |
