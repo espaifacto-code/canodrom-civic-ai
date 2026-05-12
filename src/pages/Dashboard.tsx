@@ -3,7 +3,7 @@ import { useCivicRecords } from "@/hooks/useCivicRecords";
 import MetricCard from "@/components/dashboard/MetricCard";
 import StatusBadge from "@/components/dashboard/StatusBadge";
 import ManualTrigger from "@/components/dashboard/ManualTrigger";
-import { Users, CheckCircle, TrendingUp, Gauge, ArrowUpDown, Activity, Clock, Target, AlertTriangle } from "lucide-react";
+import { Users, CheckCircle, TrendingUp, Gauge, ArrowUpDown, Activity, Clock, Target, AlertTriangle, Play, QrCode, ExternalLink } from "lucide-react";
 import { format, subDays, isWithinInterval } from "date-fns";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -56,17 +56,17 @@ export default function Dashboard() {
 
       if (!category) {
         const issueText = (record.issue || '').toLowerCase();
-        if (/(housing|rent|eviction|home|homeless|habitat)/.test(issueText)) category = 'Housing';
-        else if (/(mobility|traffic|bike|bus|transport|walk|pedestrian|street)/.test(issueText)) category = 'Mobility';
-        else if (/(green|tree|park|nature|heat|climate|sustainab|environment|pollut)/.test(issueText)) category = 'Environment';
-        else if (/(safety|violence|crime|lighting|security)/.test(issueText)) category = 'Safety';
-        else if (/(accessib|disab|inclusive|universal design)/.test(issueText)) category = 'Accessibility';
-        else if (/(youth|school|education|learning|children)/.test(issueText)) category = 'Education';
-        else if (/(health|care|mental|wellbeing|medical)/.test(issueText)) category = 'Health';
-        else if (/(community|participation|co-design|civic|social cohesion)/.test(issueText)) category = 'Community';
-        else if (/(clean|waste|trash|noise|flood|water|street light|road)/.test(issueText)) category = 'Public Space';
-        else if (/(unemploy|job|economy|business)/.test(issueText)) category = 'Economy';
-        else category = 'Other';
+        if (/(vivienda|housing|alquiler|rent|expulsión|expulsion|desahucio|habitatge)/.test(issueText)) category = 'Vivienda';
+        else if (/(espacio público|espai públic|public space|plaza|placa|calle|carrer|saturaci)/.test(issueText)) category = 'Espacio Público';
+        else if (/(transporte|transport|metro|bus|mobilitat|mobility|colaps)/.test(issueText)) category = 'Transporte';
+        else if (/(identidad|identitat|identity|alma|historia|barrio|barri|cultura|patrimoni)/.test(issueText)) category = 'Identidad';
+        else if (/(comercio|comerç|commerce|tienda|botiga|local|negoci|restaurant)/.test(issueText)) category = 'Comercio Local';
+        else if (/(ruido|soroll|noise|descanso|convivencia|convivència)/.test(issueText)) category = 'Ruido';
+        else if (/(limpieza|neteja|clean|residuos|residus|basura|brossa|civisme)/.test(issueText)) category = 'Limpieza';
+        else if (/(derecho a la ciudad|dret a la ciutat|right to the city|turista|tourist|turismo|turisme)/.test(issueText)) category = 'Derecho a la Ciudad';
+        else if (/(recursos|recursos|water|agua|aigüa|energía|energia|mediambiental|ambiental)/.test(issueText)) category = 'Recursos';
+        else if (/(trabajo|treball|work|empleo|feina|precari)/.test(issueText)) category = 'Trabajo';
+        else category = 'Otros';
       }
 
       categoryMap.set(category, (categoryMap.get(category) ?? 0) + 1);
@@ -185,11 +185,48 @@ export default function Dashboard() {
     </linearGradient>
   );
 
+  const TALLY_URL = "https://tally.so/r/9qpyWG";
+  const QR_URL = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(TALLY_URL)}&bgcolor=ffffff&color=000000&margin=8`;
+
   return (
     <div className="container space-y-8 py-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Workshop Canodrom — Dashboard</h1>
-        <p className="mt-1 text-sm text-muted-foreground">AI-assisted civic participation platform<br />transforming citizen input into actionable policy proposals</p>
+
+      {/* Workshop header */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Workshop Canodrom — Dashboard</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Turismo masivo en Barcelona · Soberanía urbana y convivencia
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {metrics ? `${metrics.total} respuesta${metrics.total !== 1 ? 's' : ''} recibida${metrics.total !== 1 ? 's' : ''}` : 'Sin respuestas aún'}
+          </p>
+        </div>
+
+        {/* QR + Start row */}
+        <div className="flex flex-col sm:flex-row items-start gap-4">
+
+          {/* QR card */}
+          <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white/80 dark:border-slate-800 dark:bg-slate-900/60 p-3 shadow-sm">
+            <img src={QR_URL} alt="QR tally form" className="w-16 h-16 rounded" />
+            <div>
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                <QrCode className="h-3 w-3" /> Formulario
+              </p>
+              <a
+                href={TALLY_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-500 hover:underline flex items-center gap-1 mt-0.5"
+              >
+                Abrir <ExternalLink className="h-2.5 w-2.5" />
+              </a>
+            </div>
+          </div>
+
+          {/* Start button */}
+          <ManualTrigger onTriggerSuccess={() => refetch()} compact />
+        </div>
       </div>
 
       {/* Key Metrics */}
@@ -205,11 +242,10 @@ export default function Dashboard() {
       )}
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 rounded-2xl border border-slate-200/80 bg-white/80 p-1 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="trends">Trends</TabsTrigger>
-          <TabsTrigger value="trigger">Manual Trigger</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 rounded-2xl border border-slate-200/80 bg-white/80 p-1 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+          <TabsTrigger value="overview">Resumen</TabsTrigger>
+          <TabsTrigger value="analytics">Respuestas</TabsTrigger>
+          <TabsTrigger value="trends">Tendencias</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -219,9 +255,9 @@ export default function Dashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Target className="h-5 w-5" />
-                  Civic Issues by Category
+                  Problemáticas por categoría
                 </CardTitle>
-                <CardDescription>Top community concerns categorized by type</CardDescription>
+                <CardDescription>Principales preocupaciones del turismo masivo</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -592,9 +628,6 @@ export default function Dashboard() {
           </div>
         </TabsContent>
 
-        <TabsContent value="trigger" className="space-y-6">
-          <ManualTrigger onTriggerSuccess={() => refetch()} />
-        </TabsContent>
       </Tabs>
     </div>
   );
