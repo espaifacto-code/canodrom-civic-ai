@@ -1,0 +1,2 @@
+// This file is only used to trigger a redeploy for GitHub Pages.
+// Safe to delete after deployment.

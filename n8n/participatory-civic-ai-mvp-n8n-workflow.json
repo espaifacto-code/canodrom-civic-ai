@@ -1,0 +1,1753 @@
+{
+  "name": "MVP_common-praxis-civic-ai-n8n-workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f47691eb-a6a7-4176-96c2-e7e29825520d",
+              "leftValue": "={{ $json.consent_given }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "10fc465d-f406-41cb-b177-a65e421fa47f",
+      "name": "If - Consent Given?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1216,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"ignored\",\n  \"reason\": \"consent_not_granted\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "ab56fffc-3103-444b-99df-ea93e78cca22",
+      "name": "Respond - Missing Consent",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -992,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nconst ethicalKeywords = [\n  'gender perspective',\n  'cultural diversity',\n  'accessibility',\n  'universal design',\n  'sustainability',\n  'community safety',\n  'social cohesion'\n];\n\nconst participationSummary = `\nIssue: ${item.issue_main}\nAffected groups: ${item.affected_groups?.join(\", \")}\nWhen: ${item.issue_timing?.join(\", \")}\nSeverity: ${item.issue_severity}\nCauses: ${item.issue_causes}\nAttempts: ${item.issue_attempts}\nRed lines: ${item.issue_red_lines}\n`;\n\nconst valuesSummary = `\nPriority values: ${item.priority_values?.join(\", \")}\nFair solution: ${item.fair_solution_definition}\nIgnored groups: ${item.ignored_groups?.join(\", \")}\nEthical principles: ${item.ethical_principles?.join(\", \")}\nNon negotiables: ${item.non_negotiables}\n`;\n\nreturn [{\n  json: {\n    ...item,\n\n    ethicalKeywords,\n\n    citizen_profile: {\n      area: item.area,\n      connection: item.area_connection,\n      frequency: item.area_frequency,\n      priorities: item.priority_values,\n      lived_experience: item.issue_main\n    },\n\n    llm_input: {\n      area: item.area,\n      issue: item.issue_main,\n      participation_summary: participationSummary,\n      values_summary: valuesSummary,\n      ethical_keywords: ethicalKeywords,\n      desired_solutions: item.solution_types,\n      community_assets: item.community_assets\n    }\n  }\n}];"
+      },
+      "id": "c405e70e-17db-4728-b727-6489bfc494af",
+      "name": "Code - Build Civic Profile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -992,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7400658c-de85-44f3-9b4f-7c2b525dfd2d",
+              "leftValue": "={{ $json.output.approved == true && !$json.output.issues.some(i => i.severity === \"critical\") }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "645dfd95-8186-4eca-94ed-a402f2cb779b",
+      "name": "If - Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2192,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const proposals = $('AI Agent - Generate Proposals').first().json.output.proposals || [];\nconst ethical = $('AI Agent - Ethical Review').first().json.output || {};\nconst scores = $('AI Agent  –  Impact Scoring').first().json.output.scores || [];\nconst buildQuery = $('Build Query').first().json || {};\nconst baseInput = $('Code in JavaScript').first().json || {};\n\nfunction detectCategory(issue, solutionTypes = [], values = []) {\n  const text = [\n    issue || '',\n    ...(solutionTypes || []),\n    ...(values || []),\n  ].join(' ').toLowerCase();\n\n  if (/(housing|rent|eviction|home|homeless|habitat)/.test(text)) return 'Housing';\n  if (/(green|tree|park|nature|heat|climate|sustainab)/.test(text)) return 'Environment';\n  if (/(mobility|traffic|bike|bus|transport|walk|pedestrian|street)/.test(text)) return 'Mobility';\n  if (/(safety|violence|crime|lighting|security)/.test(text)) return 'Safety';\n  if (/(accessib|disab|inclusive|universal design)/.test(text)) return 'Accessibility';\n  if (/(youth|school|education|learning|children)/.test(text)) return 'Education';\n  if (/(health|care|mental|wellbeing)/.test(text)) return 'Health';\n  if (/(community|participation|co-design|civic|social cohesion)/.test(text)) return 'Community';\n  if (/(clean|waste|trash|noise|pollution)/.test(text)) return 'Public Space';\n  return 'Other';\n}\n\nconst issue = buildQuery.issue_main || null;\nconst area = buildQuery.area || null;\nconst participant = buildQuery.participant_name || null;\nconst priorityValues = buildQuery.priority_values || [];\nconst solutionTypes = baseInput.solution_types || [];\nconst category = detectCategory(issue, solutionTypes, priorityValues);\n\nreturn [{\n  json: {\n    created_at: new Date().toISOString(),\n\n    issue,\n    area,\n    participant,\n\n    // add fields for dashboard grouping/filtering\n    category,\n    main_topic: category,\n    priority_values: priorityValues,\n    solution_types: solutionTypes,\n\n    proposals,\n    scores,\n\n    proposal_count: proposals.length,\n\n    approved: ethical.approved ?? null,\n    ethical_issues: ethical.issues || [],\n    ethical_issues_count: ethical.issues?.length || 0,\n\n    status: ethical.approved ? 'approved' : 'needs_revision',\n  }\n}];"
+      },
+      "id": "3a5517f0-3bde-48c1-bedf-3e549bf6e955",
+      "name": "Code - Build Dashboard Record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3472,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Common Praxis - Flujo A\nTrigger this workflow from Tally, Typeform, a custom form, or workshop operator UI.\n\n### Required manual setup\n1. Replace the RAG endpoint URL.\n2. Replace the database endpoint URL.\n3. Add an HTTP Header Auth credential for OpenAI with Authorization: Bearer YOUR_OPENAI_API_KEY.\n4. Make sure incoming form payload includes: participation_answers, values_form, consent, topic, neighborhood, city.\n5. Optionally extend the dashboard record with geospatial IDs, demographics, or clustering metadata."
+      },
+      "id": "6f1288e8-c8a0-49e7-9e6b-f94fa3dee808",
+      "name": "Sticky - Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2016,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "formId": "Y5OA8q"
+      },
+      "type": "n8n-nodes-tallyforms.tallyTrigger",
+      "typeVersion": 2,
+      "position": [
+        -1872,
+        160
+      ],
+      "id": "9cfe13ba-33ce-4dc4-a43e-9803c1436730",
+      "name": "Tally Trigger",
+      "webhookId": "a0e48bc0-71df-424c-ac6c-6d84797ed5ad",
+      "credentials": {
+        "tallyApi": {
+          "id": "89ZcbKIyvabwasoX",
+          "name": "Tally account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputJson = $input.first().json || {};\nconst body = inputJson.body ?? {};\nconst source = inputJson.data ?? inputJson;\n\nconst norm = (s) =>\n  String(s ?? '')\n    .trim()\n    .toLowerCase()\n    .replace(/\\s+/g, ' ');\n\nconst valueKeys = [\n  'value',\n  'answer',\n  'answers',\n  'text',\n  'selected',\n  'selection',\n  'choices',\n  'choice',\n  'option',\n  'options',\n  'response',\n];\n\nfunction extractCandidateValue(obj) {\n  for (const key of valueKeys) {\n    if (obj && Object.prototype.hasOwnProperty.call(obj, key)) {\n      return obj[key];\n    }\n  }\n  return undefined;\n}\n\nfunction findByLabels(root, labels) {\n  const wanted = labels.map(norm);\n  const seen = new Set();\n\n  function walk(node) {\n    if (node === null || node === undefined) return undefined;\n    if (typeof node !== 'object') return undefined;\n    if (seen.has(node)) return undefined;\n    seen.add(node);\n\n    if (Array.isArray(node)) {\n      for (const item of node) {\n        const result = walk(item);\n        if (result !== undefined) return result;\n      }\n      return undefined;\n    }\n\n    for (const [key, value] of Object.entries(node)) {\n      if (wanted.includes(norm(key))) return value;\n    }\n\n    for (const descriptor of ['label', 'title', 'question', 'name', 'key']) {\n      if (node[descriptor] !== undefined && wanted.includes(norm(node[descriptor]))) {\n        const candidate = extractCandidateValue(node);\n        if (candidate !== undefined) return candidate;\n      }\n    }\n\n    for (const value of Object.values(node)) {\n      const result = walk(value);\n      if (result !== undefined) return result;\n    }\n\n    return undefined;\n  }\n\n  const result = walk(root);\n  return result === undefined ? null : result;\n}\n\nfunction asArray(value) {\n  if (Array.isArray(value)) return value;\n  if (value === null || value === undefined || value === '') return [];\n  return [value];\n}\n\nfunction asNumber(value) {\n  if (value === null || value === undefined || value === '') return null;\n  const n = Number(value);\n  return Number.isFinite(n) ? n : null;\n}\n\nconst isDashboardTrigger =\n  inputJson.source === 'dashboard_manual_trigger' ||\n  body.source === 'dashboard_manual_trigger' ||\n  source.source === 'dashboard_manual_trigger' ||\n  source.hidden?.source === 'dashboard_manual_trigger';\n\nconst normalized = {\n  consent_given:\n    source.consent_given ??\n    Boolean(\n      findByLabels(source, [\n        'Before continuing, please confirm:',\n        'I understand that my answers may be processed by AI to help generate community proposals.'\n      ])\n    ),\n\n  project_id: source.project_id ?? source.hidden?.project_id ?? null,\n  pilot_topic: source.pilot_topic ?? source.hidden?.pilot_topic ?? null,\n  session_id: source.session_id ?? source.hidden?.session_id ?? null,\n  facilitator: source.facilitator ?? source.hidden?.facilitator ?? null,\n  language: source.language ?? source.hidden?.language ?? null,\n  source: source.source ?? source.hidden?.source ?? null,\n  workshop_id: source.workshop_id ?? source.hidden?.workshop_id ?? null,\n\n  participant_name: findByLabels(source, ['What should we call you?']),\n  participant_email: findByLabels(source, ['Email (optional)']),\n\n  area: findByLabels(source, ['Which neighborhood or area are you talking about?']),\n  area_connection: findByLabels(source, ['What is your connection to this area?']),\n  area_frequency: findByLabels(source, ['How often are you in this area?']),\n\n  issue_main: findByLabels(source, [\n    'What is the main issue or challenge in this neighborhood or public space?'\n  ]),\n  affected_groups: asArray(findByLabels(source, ['Who is most affected by this issue?'])),\n  issue_timing: asArray(findByLabels(source, ['When does this issue happen most often?'])),\n  issue_severity: asNumber(findByLabels(source, ['How serious is this issue for you?'])),\n  issue_causes: findByLabels(source, ['What do you think is causing this issue?']),\n  issue_attempts: findByLabels(source, ['Has anything already been tried to solve it?']),\n  issue_red_lines: findByLabels(source, [\n    'What should definitely not happen in any future solution?'\n  ]),\n\n  priority_values: asArray(findByLabels(source, [\n    'Which values should be prioritized most in this area? Choose up to 3.',\n    'Which values should be prioritized most in this area?'\n  ])),\n\n  fair_solution_definition: findByLabels(source, ['What would a fair solution look like here?']),\n  ignored_groups: asArray(findByLabels(source, [\n    'Which groups are often ignored in decisions like this?'\n  ])),\n  ethical_principles: asArray(findByLabels(source, [\n    'Which principles should always be respected in any proposal?'\n  ])),\n  non_negotiables: findByLabels(source, [\n    'Are there any values or principles that should never be compromised?'\n  ]),\n\n  solution_types: asArray(findByLabels(source, [\n    'What kinds of solutions would you like to see? Choose all that apply.',\n    'What kinds of solutions would you like to see?'\n  ])),\n\n  best_first_step: findByLabels(source, ['What would be the best first step?']),\n  community_assets: findByLabels(source, [\n    'What resources, strengths, or community assets already exist here?'\n  ]),\n  solution_stakeholders: asArray(findByLabels(source, [\n    'Who should be involved in designing or implementing a solution?'\n  ])),\n  success_6m: findByLabels(source, ['What would a successful outcome look like in 6 months?']),\n  future_workshop_interest: findByLabels(source, [\n    'Would you like to take part in a future workshop or co-design session?'\n  ]),\n  final_comment: findByLabels(source, [\n    'Is there anything else you want us to understand before generating proposals?'\n  ]),\n\n  _raw: source,\n};\n\nconsole.log('INPUT DATA:', JSON.stringify(inputJson, null, 2));\nconsole.log('NORMALIZED SOURCE:', JSON.stringify(source, null, 2));\nconsole.log('isDashboardTrigger:', isDashboardTrigger);\nconsole.log('NORMALIZED OUTPUT:', JSON.stringify(normalized, null, 2));\n\nif (!normalized.consent_given && !isDashboardTrigger) {\n  throw new Error('Consent not given');\n}\n\nif (isDashboardTrigger) {\n  normalized.consent_given = source.consent_given ?? true;\n}\n\nreturn [{ json: normalized }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1440,
+        384
+      ],
+      "id": "65720221-08d8-4898-93cd-74ca54233102",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "content": "### REFERENCED PDFS\nhttps://www.habitatge.barcelona/sites/default/files/en-web_balanc_2018_-_pla_pel_dret_a_lhabitatge_2016-2025-en-gb.pdf\n\nhttps://geographyfieldwork.com/22%40locations.pdf\n\nhttps://eu-architecturalheritage.org/uploads/award/sheets/c/16801965194WQD_MPGM%20Gr%C3%A0cia_Memoria_ENG.pdf\n\nhttps://www.bcnuej.org/wp-content/uploads/2021/04/Toolkit-Urban-Green-Justice.pdf\n\nhttps://www.local2030.org/library/67/Urban-Planning-for-City-Leaders.pdf\n\nhttps://recs.es/wp-content/uploads/2024/03/guide_to_planning_HealthyCities-1.pdf\n\nhttps://opennorth.ca/wp-content/uploads/legacy/Open_Data_for_Smart_City_and_Urban_Development.pdf\n\nhttps://data.europa.eu/sites/default/files/edp_analytical_report_n4_-_open_data_in_cities_v1.0_final.pdf",
+        "height": 368,
+        "width": 464
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1824,
+        1584
+      ],
+      "typeVersion": 1,
+      "id": "f3ac2583-07fb-49f1-9012-0ca247112206",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const item = $input.item;\n\nif (!item.binary) {\n  throw new Error('No binary file found');\n}\n\nconst key = Object.keys(item.binary)[0];\nitem.binary[key].mimeType = 'application/pdf';\nitem.binary[key].fileName = 'faq.pdf';\n\n// Preserve title and url from input\nitem.json.title = item.json.title;\nitem.json.url = item.json.url;\n\nreturn item;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -832,
+        1392
+      ],
+      "id": "116bed82-685e-4e92-b44e-67be94fe95a7",
+      "name": "Fix PDF Metadata"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "pdfs",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -1328,
+        1392
+      ],
+      "id": "8ab2f3da-f764-45f4-9073-fb78b3e449d2",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "id": "1d30f2f4-fb22-4831-915d-19deb39ee130",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        -480,
+        480
+      ],
+      "typeVersion": 1.2,
+      "credentials": {
+        "openAiApi": {
+          "id": "zSavqFSPfrA2xjl7",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Search technical documents and policy references related to urban planning, civic participation, public space governance, sustainability, accessibility, and community safety. \n\nUse this tool when the user asks about regulations, planning guidelines, infrastructure solutions, policy frameworks, or technical recommendations related to city development and neighborhood issues.",
+        "tableName": {
+          "__rl": true,
+          "value": "civic_documents",
+          "mode": "list",
+          "cachedResultName": "civic_documents"
+        },
+        "topK": 3,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        -240,
+        496
+      ],
+      "id": "54c0a52e-fb11-4276-8bec-39b51250595c",
+      "name": "technical_knowledge_base",
+      "credentials": {
+        "supabaseApi": {
+          "id": "bX8fv3xcy6dwu5HD",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chunkSize": 650,
+        "chunkOverlap": 100
+      },
+      "id": "4fc172c3-2aca-4ef6-be82-2b60c278b83e",
+      "name": "Chunk Text (650 tokens)",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterTokenSplitter",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        1824
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "binary",
+        "textSplittingMode": "custom",
+        "options": {}
+      },
+      "id": "971d4492-cc12-4d25-8fbd-3376f5564a03",
+      "name": "Load PDF Documents",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        -528,
+        1616
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "a2fcede1-7fa9-4af8-ac18-beb79837dee8",
+      "name": "Generate Embeddings",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -656,
+        1616
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "zSavqFSPfrA2xjl7",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": {
+          "__rl": true,
+          "value": "civic_documents",
+          "mode": "list",
+          "cachedResultName": "civic_documents"
+        },
+        "options": {}
+      },
+      "id": "5c55814e-0358-4e3e-b7a6-a7b43088d135",
+      "name": "Insert into Supabase",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        -624,
+        1392
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "bX8fv3xcy6dwu5HD",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2176,
+        720
+      ],
+      "id": "c87c9bf8-60d1-4769-9278-f5065b8aa885",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "jsCode": "const issue = $json.issue_main || \"lack of green spaces\";\nconst area = $json.area || \"Gràcia\";\nconst values = ($json.priority_values?.length ? $json.priority_values : [\"sustainability\",\"community\"]).join(\", \");\n\nconst query = `\nUrban planning regulations, civic participation frameworks, and policy guidance related to:\n\nIssue: ${issue}\nLocation: ${area}\nCommunity priorities: ${values}\n\nFocus on technical solutions, urban policy, planning guidelines, and governance practices.\n`;\n\nreturn [{\n  json: {\n    ...$json,\n\n    // overwrite null fields with working defaults\n    issue_main: issue,\n    area: area,\n    priority_values: values.split(\", \"),\n\n    query: query\n  }\n}];"
+      },
+      "id": "2069e8d5-a88e-4c47-b804-bfad77281420",
+      "name": "Build Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -784,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small",
+        "options": {}
+      },
+      "id": "7655b1cb-09bd-43d2-90d0-8f8176fca173",
+      "name": "Generate Query Embedding",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [
+        -192,
+        656
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "zSavqFSPfrA2xjl7",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $json;\n\n// Try to extract documents from different possible shapes\nconst docs =\n  base.documents ||\n  base.results ||\n  base.matches ||\n  base.data ||\n  [];\n\n// Extract text from documents if they exist\nlet text = docs\n  .map(d => d.pageContent || d.content || d.text || d.metadata?.text || \"\")\n  .filter(Boolean)\n  .join(\"\\n\\n\");\n\n// If the AI Agent returned text instead of docs, use that\nif (!text && base.output) {\n  text = base.output;\n}\n\nreturn [\n  {\n    json: {\n      // Keep only essential fields from input, NOT the raw output\n      project_id: base.project_id,\n      query: base.query,\n      \n      // Single consolidated context field\n      context: text || \"No technical documents found\",\n      \n      // Metadata only\n      doc_count: docs.length || (base.output ? 1 : 0),\n      context_length: text.length\n    }\n  }\n];"
+      },
+      "id": "245e9bcd-784e-4acb-bee3-6a8c910f1e0d",
+      "name": "Merge Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        144,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.project_id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -336,
+        496
+      ],
+      "id": "d39a8baf-7e57-44a3-a120-3195697b7d74",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Build Query').item.json.project_id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1184,
+        608
+      ],
+      "id": "d6529a02-e447-48d2-be24-ffe7acf75aa9",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-3.5-turbo",
+          "mode": "list",
+          "cachedResultName": "gpt-3.5-turbo"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1072,
+        480
+      ],
+      "id": "f68692f6-bcd3-4a66-b43e-3daccda7e97c",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "zSavqFSPfrA2xjl7",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Build Query').item.json.project_id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1728,
+        608
+      ],
+      "id": "4ea6d521-6379-40a8-b63d-f978b511be32",
+      "name": "Simple Memory2"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1616,
+        496
+      ],
+      "id": "abaeef7f-af23-4d0f-8170-65fea960055d",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "zSavqFSPfrA2xjl7",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are reviewing civic proposals for ethical compliance.\n\nCitizen issue: {{ $('Build Query').item.json.issue_main }}\nCitizen values: {{ JSON.stringify($('Build Query').item.json.priority_values) }}\n\nProposals:\n{{ JSON.stringify($json.output.proposals, null, 2) }}\n\nReview for:\n- Gender equity\n- Cultural inclusion  \n- Accessibility\n- Environmental sustainability\n- Technical feasibility\n- Social fairness\n\nOnly reject if there are CRITICAL issues that violate core ethical principles.\n\nReturn your response in this exact JSON structure:\n{\n  \"approved\": true,\n  \"issues\": []\n}\n\nIf you find issues, include them in the issues array with id, area, severity (low/medium/high/critical), and detail fields.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an ethical review assistant. You MUST return only valid JSON matching the required schema. No markdown, no explanations, no text before or after the JSON object. If there are no issues, return: {\"approved\": true, \"issues\": []}"
+        }
+      },
+      "id": "9ae39fa7-8836-428c-9e06-bbd9e791832e",
+      "name": "AI Agent - Ethical Review",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        1632,
+        320
+      ],
+      "typeVersion": 1.9,
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Create 3 civic proposals based on the citizen participation input and the retrieved technical context.\n\nCITIZEN ISSUE\n\n{{ $('Build Query').item.json.issue_main }}\n\nLOCATION\n\n{{ $('Build Query').item.json.area }}\n\nCOMMUNITY VALUES\n\n{{ JSON.stringify($('Build Query').item.json.priority_values, null, 2) }}\n\nCOMMUNITY ASSETS\n\n{{ $('Build Query').item.json.community_assets }}\n\nTECHNICAL CONTEXT FROM POLICY DOCUMENTS\n{{ $('Merge Context').item.json.context }}\n\nSolution categories to cover:\n\n{{ JSON.stringify($json.output.solution_types) }}\n\nYour task is to translate the citizen concerns and values into realistic civic proposals grounded in planning knowledge.\n\nEach proposal must:\n\n• respect accessibility and universal design\n• consider gender equity and cultural inclusion\n• support environmental sustainability\n• remain technically realistic for municipal implementation\n• align with the citizen priorities described above\n\nAvoid solutions that:\n\n• exclude vulnerable groups\n• create environmental harm\n• require unrealistic infrastructure changes\n• contradict the stated community values\n\n\nCRITICAL RULES\n\nReturn EXACTLY 3 proposals.\nReturn ONLY valid JSON.\nDo not include explanations.\nDo not include markdown.\nDo not include text before or after JSON.\n\nYour response MUST match this format exactly:\n\n{\n \"proposals\": [\n  {\n   \"title\": \"...\",\n   \"problem_summary\": \"...\",\n   \"solution\": \"...\",\n   \"implementation_steps\": [],\n   \"stakeholders\": [],\n   \"expected_impact_6m\": \"...\"\n  }\n ]\n}\n\n\n",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a civic participation assistant. Your job is not to decide for the community, but to translate citizen values and lived experience into transparent, technically grounded proposals. Always preserve plurality, avoid false consensus, and explicitly respect gender perspective, cultural diversity, accessibility, universal design, and sustainability. Return strict JSON only."
+        }
+      },
+      "id": "60cb7878-f812-4280-9784-dc9f29b8e9bc",
+      "name": "AI Agent - Generate Proposals",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        1136,
+        304
+      ],
+      "typeVersion": 1.9,
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=={{ $json.query }}",
+        "options": {
+          "systemMessage": "Use the technical_knowledge_base tool to retrieve relevant urban planning and civic policy documents. \nReturn the retrieved documents so they can be used as context."
+        }
+      },
+      "id": "e9567f5a-d94b-4ffb-9ae4-3960843d9050",
+      "name": "AI Agent - Fetch Technical Data",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        -432,
+        304
+      ],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"consent_given\": true,\n  \"project_id\": \"sample_project_id\",\n  \"pilot_topic\": \"urban planning\",\n  \"session_id\": \"sample_session_id\",\n  \"facilitator\": \"John Doe\",\n  \"language\": \"English\",\n    \"source\": \"dashboard_manual_trigger\",\n\n  \"responses\": [\n    { \"question\": \"What should we call you?\", \"answer\": \"Jane Doe\" },\n    { \"question\": \"Email (optional)\", \"answer\": \"jane@example.com\" },\n\n    { \"question\": \"Which neighborhood or area are you talking about?\", \"answer\": \"Gràcia\" },\n    { \"question\": \"What is your connection to this area?\", \"answer\": \"Resident\" },\n    { \"question\": \"How often are you in this area?\", \"answer\": \"Daily\" },\n\n    { \"question\": \"What is the main issue or challenge in this neighborhood or public space?\", \"answer\": \"Lack of green spaces\" },\n    { \"question\": \"Who is most affected by this issue?\", \"answer\": [\"Children\",\"Residents\"] },\n    { \"question\": \"When does this issue happen most often?\", \"answer\": [\"Weekends\"] },\n    { \"question\": \"How serious is this issue for you?\", \"answer\": 3 },\n    { \"question\": \"What do you think is causing this issue?\", \"answer\": \"Urbanization\" },\n    { \"question\": \"Has anything already been tried to solve it?\", \"answer\": \"None noted\" },\n    { \"question\": \"What should definitely not happen in any future solution?\", \"answer\": \"No industrial solution\" },\n\n    { \"question\": \"Which values should be prioritized most in this area?\", \"answer\": [\"Sustainability\",\"Community\",\"Accessibility\"] },\n    { \"question\": \"What would a fair solution look like here?\", \"answer\": \"Green park area\" },\n    { \"question\": \"Which groups are often ignored in decisions like this?\", \"answer\": [\"Elderly\"] },\n    { \"question\": \"Which principles should always be respected in any proposal?\", \"answer\": [\"Universal Design\"] },\n    { \"question\": \"Are there any values or principles that should never be compromised?\", \"answer\": \"Preserve nature\" },\n\n    { \"question\": \"What kinds of solutions would you like to see?\", \"answer\": [\"Community Program\",\"Green Spaces\"] },\n    { \"question\": \"What would be the best first step?\", \"answer\": \"Plant trees\" },\n    { \"question\": \"What resources, strengths, or community assets already exist here?\", \"answer\": \"Local volunteers\" },\n    { \"question\": \"Who should be involved in designing or implementing a solution?\", \"answer\": [\"Local government\"] },\n    { \"question\": \"What would a successful outcome look like in 6 months?\", \"answer\": \"Visible progress on greenery\" },\n    { \"question\": \"Would you like to take part in a future workshop or co-design session?\", \"answer\": \"Yes\" },\n    { \"question\": \"Is there anything else you want us to understand before generating proposals?\", \"answer\": \"Consider the children\" }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1888,
+        704
+      ],
+      "id": "71b58324-4b09-41fe-9293-da73d39018c7",
+      "name": "Mock data provider"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"proposals\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"title\": { \"type\": \"string\" },\n          \"problem_summary\": { \"type\": \"string\" },\n          \"solution\": { \"type\": \"string\" },\n          \"implementation_steps\": {\n            \"type\": \"array\",\n            \"items\": { \"type\": \"string\" }\n          },\n          \"stakeholders\": {\n            \"type\": \"array\",\n            \"items\": { \"type\": \"string\" }\n          },\n          \"expected_impact_6m\": { \"type\": \"string\" }\n        },\n        \"required\": [\n          \"title\",\n          \"problem_summary\",\n          \"solution\"\n        ]\n      }\n    }\n  },\n  \"required\": [\"proposals\"]\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1264,
+        736
+      ],
+      "id": "2d09c673-76d7-4ebc-97f5-f9f2ebdd6a61",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1200,
+        880
+      ],
+      "id": "3f6163e3-767c-410e-913c-e7a6922640f3",
+      "name": "OpenAI Chat Model3",
+      "credentials": {
+        "openAiApi": {
+          "id": "zSavqFSPfrA2xjl7",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"approved\": { \"type\": \"boolean\" },\n    \"issues\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"id\": { \"type\": \"string\" },\n          \"area\": { \"type\": \"string\" },\n          \"severity\": { \"type\": \"string\", \"enum\": [\"low\", \"medium\", \"high\", \"critical\"] },\n          \"detail\": { \"type\": \"string\" }\n        },\n        \"required\": [\"id\", \"area\", \"severity\", \"detail\"]\n      }\n    }\n  },\n  \"required\": [\"approved\", \"issues\"]\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1840,
+        496
+      ],
+      "id": "93dcd477-b2ce-49ce-97aa-bdcc616a6332",
+      "name": "Structured Output Parser2",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1936,
+        656
+      ],
+      "id": "ba1d4baa-1b6b-4aa1-8214-e2be3e12dbc4",
+      "name": "OpenAI Chat Model4",
+      "credentials": {
+        "openAiApi": {
+          "id": "zSavqFSPfrA2xjl7",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        3056,
+        96
+      ],
+      "id": "4f98cb57-16ea-4747-9c3c-522f0ccd5e9a",
+      "name": "OpenAI Chat Model5",
+      "credentials": {
+        "openAiApi": {
+          "id": "zSavqFSPfrA2xjl7",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Build Query').item.json.project_id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        3152,
+        112
+      ],
+      "id": "7de454e2-c6e2-42f1-a931-bd103795a9bc",
+      "name": "Simple Memory3"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2464,
+        144
+      ],
+      "id": "7be508d7-a67c-490d-a083-dd1a4bfd5b66",
+      "name": "OpenAI Chat Model6",
+      "credentials": {
+        "openAiApi": {
+          "id": "zSavqFSPfrA2xjl7",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Build Query').item.json.project_id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2576,
+        112
+      ],
+      "id": "d74c873d-10fd-4200-b05b-06c7aeedf12d",
+      "name": "Simple Memory4"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"scores\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"proposal_title\": { \"type\": \"string\" },\n          \"equity_score\": { \"type\": \"number\" },\n          \"sustainability_score\": { \"type\": \"number\" },\n          \"feasibility_score\": { \"type\": \"number\" },\n          \"community_support_score\": { \"type\": \"number\" },\n          \"summary\": { \"type\": \"string\" }\n        },\n        \"required\": [\n          \"proposal_title\",\n          \"equity_score\",\n          \"sustainability_score\",\n          \"feasibility_score\",\n          \"community_support_score\"\n        ]\n      }\n    }\n  },\n  \"required\": [\"scores\"]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2720,
+        80
+      ],
+      "id": "b20cfcb6-3cff-48c1-9340-ebf728d9c2a7",
+      "name": "Structured Output Parser3"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a civic transparency assistant.\n\nYour job is to explain the AI-generated civic proposals to a citizen in clear, simple language.\n\nExplain:\n\n1. What issue the community raised\n2. What proposals were generated\n3. Why these proposals help solve the problem\n4. How the ethical review evaluated them\n\nWrite in plain language suitable for a public participation platform.\n\nCitizen issue:\n{{ $('Build Query').item.json.issue_main }}\n\nCitizen values:\n{{ JSON.stringify($('Build Query').item.json.priority_values) }}\n\nGenerated proposals:\n{{ JSON.stringify($('AI Agent - Generate Proposals').item.json.output.proposals, null, 2) }}\n\nEthical review result:\n{{ JSON.stringify($('AI Agent - Ethical Review').item.json.output, null, 2) }}\n\nImpact scoring results:\n{{ JSON.stringify($json.output.scores, null, 2) }}\n\nReturn a clear explanation paragraph.\nLimit the explanation to 120–180 words.",
+        "options": {}
+      },
+      "id": "e54d9faa-6b89-4bab-9344-4a695e6ea2a4",
+      "name": "AI Agent  –  Civic Explanation",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        3008,
+        -144
+      ],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a civic policy evaluation assistant.\n\nEvaluate each proposal using the following criteria:\n\n1. Equity — does the proposal benefit diverse groups fairly?\n2. Sustainability — does it support environmental and long-term resilience?\n3. Feasibility — is it realistically implementable within a city context?\n4. Community support potential — how likely is it to gain community support?\n\nScore each dimension from 1–10.\n\nReturn ONLY valid JSON.\n\nProposals:\n\n{{ JSON.stringify($('AI Agent - Generate Proposals').item.json.output.proposals, null, 2) }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "id": "4ab7ba03-caae-4fbb-9317-66f619de709c",
+      "name": "AI Agent  –  Impact Scoring",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        2480,
+        -144
+      ],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Build Query').item.json.project_id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        560,
+        608
+      ],
+      "id": "9e9eeb56-10db-4e21-8ff8-b2193f9776af",
+      "name": "Simple Memory5"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        448,
+        480
+      ],
+      "id": "a2d45e3a-dd59-414a-ae47-2fddb86df307",
+      "name": "OpenAI Chat Model7",
+      "credentials": {
+        "openAiApi": {
+          "id": "zSavqFSPfrA2xjl7",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"solution_types\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" }\n    }\n  },\n  \"required\": [\"solution_types\"]\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        640,
+        512
+      ],
+      "id": "bc59868a-a67f-47ab-bcaa-b422130ede74",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        672,
+        768
+      ],
+      "id": "499470a6-dcda-4f3c-adc1-9b397bf7426d",
+      "name": "OpenAI Chat Model8",
+      "credentials": {
+        "openAiApi": {
+          "id": "zSavqFSPfrA2xjl7",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a civic innovation assistant.\n\nBefore generating proposals, identify different categories of solutions\nthat could address the community issue.\n\nAlways include a mix of:\n\n• policy or governance change\n• community initiative\n• infrastructure or urban design\n• education or awareness\n\nCitizen issue:\n{{ $('Build Query').item.json.issue_main }}\n\nReturn ONLY JSON:\n\n{\n \"solution_types\": [\n  \"policy\",\n  \"community program\",\n  \"urban infrastructure\",\n  \"education campaign\"\n ]\n}\n",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "id": "3af231b8-aa29-4b5f-9167-b154df9c8888",
+      "name": "AI Agent – Generate Solution Types",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        480,
+        304
+      ],
+      "typeVersion": 1.9,
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "tableId": "civic_records",
+        "dataToSend": "autoMapInputData"
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3840,
+        256
+      ],
+      "id": "823512b7-4f59-40b6-a563-e2118abdb6ef",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "bX8fv3xcy6dwu5HD",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## GENERATE PROPOSALS\n### Creates 3 civic proposals grounded in policy documents. Each proposes implementation steps, actors, timeframe, and alignment with citizen values.",
+        "height": 880,
+        "width": 528,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1008,
+        160
+      ],
+      "typeVersion": 1,
+      "id": "37d84619-7b94-464c-8333-9f2c7d37bc50",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## GENERATE SOLUTION TYPES\n  - Policy\n  - Community program\n  - Urban infrastructure\n  - Education campaign\n ",
+        "height": 768,
+        "width": 544,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        384,
+        160
+      ],
+      "typeVersion": 1,
+      "id": "32d6b082-9372-4e17-a0d9-72f8b867ee10",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## FETCH TECHNICAL DATA\n### Data comes from embeddings, which already have the information of pdf's if you have ran the second node \"Load PDF's Data\"",
+        "height": 624,
+        "width": 544,
+        "color": "#B8BAFF"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -528,
+        176
+      ],
+      "typeVersion": 1,
+      "id": "d1277f9d-b0d1-49e6-bd08-4d9efde847d1",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "## ETHICAL REVIEW\n### Reviews proposals for bias, exclusion, accessibility gaps, technical feasibility, and environmental concerns. Returns approval status and critical issues.\n",
+        "height": 656,
+        "width": 576,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1568,
+        160
+      ],
+      "typeVersion": 1,
+      "id": "c34fee31-8650-41e6-a85c-f8f8fce8fb3b",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "## IMPACT SCORING\n### Scores proposals on feasibility, social impact, inclusivity, and sustainability. Returns quantitative metrics for each proposal.\n\n",
+        "height": 576,
+        "width": 464
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2400,
+        -288
+      ],
+      "typeVersion": 1,
+      "id": "113946e3-8f0e-49c1-a4de-fa4e3d167ccb",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "## CIVIC EXPLANATION\n### Translates technical proposals into plain language explanations for citizens. Makes complex policy solutions accessible and understandable.",
+        "height": 576,
+        "width": 368,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2928,
+        -288
+      ],
+      "typeVersion": 1,
+      "id": "d40c58d4-a4f8-4ab5-8575-f8eed1feaaff",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "## LOAD DATA FROM PDF\n",
+        "width": 464
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -512,
+        624
+      ],
+      "typeVersion": 1,
+      "id": "96353db9-35d6-4d32-9872-325ae9f0feda",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"pdfs\": [\n    {\n      \"title\": \"Barcelona Housing Plan\",\n      \"url\": \"https://www.habitatge.barcelona/sites/default/files/en-web_balanc_2018_-_pla_pel_dret_a_lhabitatge_2016-2025-en-gb.pdf\"\n    },\n    {\n      \"title\": \"Urban Green Justice Toolkit\",\n      \"url\": \"https://www.bcnuej.org/wp-content/uploads/2021/04/Toolkit-Urban-Green-Justice.pdf\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1552,
+        1392
+      ],
+      "id": "694880fc-7e00-4ff9-9c05-347244e3aa4c",
+      "name": "List of documents to load"
+    },
+    {
+      "parameters": {
+        "url": "={{$json.url}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "dc5d2337-380a-409c-aa8c-f8d72f63f854",
+      "name": "Download PDF's",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1104,
+        1392
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# Uploading files for embeddings to reference the AI Chatbot\n",
+        "height": 704,
+        "width": 1632,
+        "color": "#B8FFCF"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1872,
+        1280
+      ],
+      "typeVersion": 1,
+      "id": "7d276adb-3a36-4061-bea2-2b64ce9d0df1",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2880,
+        832
+      ],
+      "id": "096fb801-55ee-4f5c-9562-5977fa45d1f8",
+      "name": "OpenAI Chat Model9",
+      "credentials": {
+        "openAiApi": {
+          "id": "zSavqFSPfrA2xjl7",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Build Query').item.json.project_id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        3040,
+        832
+      ],
+      "id": "7db70954-f571-4c4a-9d70-9a9ef501351b",
+      "name": "Simple Memory6"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=\"Original proposal package:  {{ $('AI Agent - Generate Proposals').item.json.output.proposals }} Reviewer feedback: {{ $('AI Agent - Ethical Review').item.json.output }}\n    }",
+        "options": {
+          "systemMessage": "Revise civic proposals using reviewer feedback. Keep them faithful to citizen input and technical context. Return strict JSON only."
+        }
+      },
+      "id": "9779840f-711e-4082-b60f-d01833f2a592",
+      "name": "AI Agent  –  Civic Explanation1",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        2912,
+        576
+      ],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 1 1 *"
+            }
+          ]
+        }
+      },
+      "id": "b63d215d-57bc-4abb-99b5-ac213d5a4c6f",
+      "name": "Load PDFs Data (Run Once)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1776,
+        1392
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## CLEAN CONTEXT FROM DOCS\n- it takes retrieved policy documents and formats them into a clean context string",
+        "height": 336,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        80,
+        160
+      ],
+      "typeVersion": 1,
+      "id": "41ab38be-b0ee-4d46-b4d0-524ebba9fd2f",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/dashboard-trigger",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1888,
+        432
+      ],
+      "id": "1dabc172-23a0-45e4-910a-9de52398fe2f",
+      "name": "Webhook",
+      "webhookId": "3283e81d-24ba-4ebf-b920-ed7551857454"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        4096,
+        272
+      ],
+      "id": "914268bc-9c6d-402b-be0e-e7da1acec6ad",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "If - Consent Given?": {
+      "main": [
+        [
+          {
+            "node": "Code - Build Civic Profile",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Missing Consent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If - Approved?": {
+      "main": [
+        [
+          {
+            "node": "AI Agent  –  Impact Scoring",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent  –  Civic Explanation1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Build Dashboard Record": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tally Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If - Consent Given?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fix PDF Metadata": {
+      "main": [
+        [
+          {
+            "node": "Insert into Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Download PDF's",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Fetch Technical Data",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "technical_knowledge_base": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Fetch Technical Data",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chunk Text (650 tokens)": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Load PDF Documents",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load PDF Documents": {
+      "ai_document": [
+        [
+          {
+            "node": "Insert into Supabase",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Insert into Supabase",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Mock data provider",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Query": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Fetch Technical Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Query Embedding": {
+      "ai_embedding": [
+        [
+          {
+            "node": "technical_knowledge_base",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Build Civic Profile": {
+      "main": [
+        [
+          {
+            "node": "Build Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Context": {
+      "main": [
+        [
+          {
+            "node": "AI Agent – Generate Solution Types",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent - Fetch Technical Data",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent - Generate Proposals",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Generate Proposals",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory2": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent - Ethical Review",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Ethical Review",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Ethical Review": {
+      "main": [
+        [
+          {
+            "node": "If - Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Generate Proposals": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Ethical Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Fetch Technical Data": {
+      "main": [
+        [
+          {
+            "node": "Merge Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock data provider": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent - Generate Proposals",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent - Ethical Review",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent  –  Civic Explanation",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory3": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent  –  Civic Explanation",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model6": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent  –  Impact Scoring",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory4": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent  –  Impact Scoring",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser3": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent  –  Impact Scoring",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent  –  Civic Explanation": {
+      "main": [
+        [
+          {
+            "node": "Code - Build Dashboard Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent  –  Impact Scoring": {
+      "main": [
+        [
+          {
+            "node": "AI Agent  –  Civic Explanation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory5": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent – Generate Solution Types",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model7": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent – Generate Solution Types",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent – Generate Solution Types",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model8": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent – Generate Solution Types": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Generate Proposals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List of documents to load": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download PDF's": {
+      "main": [
+        [
+          {
+            "node": "Fix PDF Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model9": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent  –  Civic Explanation1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory6": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent  –  Civic Explanation1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load PDFs Data (Run Once)": {
+      "main": [
+        [
+          {
+            "node": "List of documents to load",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent  –  Civic Explanation1": {
+      "main": [
+        [
+          {
+            "node": "Code - Build Dashboard Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "9ffca011-fa4b-47e6-8ea4-57659900beb1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c59481a0f20aec2ed9e2a0979c7952401d83395d4f607f9ce4d8778ab5fd3b9f"
+  },
+  "id": "KjVVGyy7qsOuMmXl",
+  "tags": []
+}

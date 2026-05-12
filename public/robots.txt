@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://espaifacto-code.github.io/civic-voice-ai/sitemap.xml
+Allow: /
+
+User-agent: *
+Allow: /

@@ -1,0 +1,4 @@
+project_id = "swekxstyrfoctoqqmklb"
+
+[functions.manual-trigger]
+verify_jwt = false
