@@ -31,17 +31,11 @@ Legend: ✅ Done · 🔄 In progress · ⬜ Pending · 🔥 Blocking
 
 ## 3. Dashboard — Ready for 13 May meeting 🔥
 
-- ⬜ Add QR code panel → links to `tally.so/r/9qpyWG`
-- ⬜ Update issue categories to tourism topics:
-  - Vivienda / Housing
-  - Espacio público / Public Space
-  - Transporte / Transport
-  - Identidad / Identity
-  - Comercio local / Local Commerce
-  - Ruido / Noise
-  - Limpieza / Cleanliness
-  - Derecho a la ciudad / Right to the City
-- ⬜ Replace "Manual Trigger" tab with prominent **"Start Pipeline"** button
+- ✅ Add QR code panel → links to `tally.so/r/9qpyWG`
+- ✅ Update issue categories to tourism topics (Vivienda, Espacio público, Transporte, Identidad, Comercio local, Ruido, Limpieza, Derecho a la ciudad)
+- ✅ Replace "Manual Trigger" tab with prominent **"¡Iniciar pipeline!"** button in header
+- ✅ Supabase URL fixed (removed `/rest/v1/` suffix)
+- ✅ ManualTrigger form translated to Spanish
 - ⬜ Live submissions list visible on main view (not hidden in a tab)
 - ⬜ Language labels: Spanish / Catalan / English
 
