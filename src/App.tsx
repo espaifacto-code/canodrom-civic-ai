@@ -10,6 +10,7 @@ import Dashboard from "@/pages/Dashboard";
 import Explorer from "@/pages/Explorer";
 import Responses from "@/pages/Responses";
 import ProcessDiagram from "@/pages/ProcessDiagram";
+import Results from "@/pages/Results";
 import Index from "@/pages/Index";
 import NotFound from "./pages/NotFound";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -57,6 +58,7 @@ const AppShell = () => {
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/results" element={<Results />} />
           <Route path="/explorer" element={<Explorer />} />
           <Route path="/responses" element={<Responses />} />
           <Route path="/process" element={<ProcessDiagram />} />

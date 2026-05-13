@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -137,9 +138,17 @@ export default function ManualTrigger({ onTrigger, onTriggerSuccess, compact }: 
           Pulsa cuando todos hayan enviado el formulario
         </p>
         {status === 'success' && (
-          <Badge variant="default" className="flex items-center gap-1 bg-emerald-500">
-            <CheckCircle className="h-3 w-3" /> Pipeline iniciado
-          </Badge>
+          <div className="flex flex-col items-center gap-1.5">
+            <Badge variant="default" className="flex items-center gap-1 bg-emerald-500">
+              <CheckCircle className="h-3 w-3" /> Pipeline iniciado
+            </Badge>
+            <Link
+              to="/results"
+              className="text-xs text-blue-500 hover:underline font-medium"
+            >
+              Ver resultados →
+            </Link>
+          </div>
         )}
         {status === 'error' && (
           <Badge variant="destructive" className="flex items-center gap-1">
