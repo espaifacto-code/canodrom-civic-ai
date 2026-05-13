@@ -44,6 +44,18 @@ const ACTOR_LABELS: Record<string, string> = {
   "Academia": "Academia",
 };
 
+function normalizeLabel(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+}
+
+const ACTOR_NORMALIZED = Object.fromEntries(
+  Object.entries(ACTOR_LABELS).map(([k, v]) => [normalizeLabel(k), v])
+);
+
+const EFFECT_NORMALIZED = Object.fromEntries(
+  Object.entries(EFFECT_LABELS).map(([k, v]) => [normalizeLabel(k), v])
+);
+
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316", "#22c55e", "#ec4899", "#6366f1"];
 
 export default function Dashboard() {
@@ -55,11 +67,12 @@ export default function Dashboard() {
     const counts: Record<string, number> = {};
     responses.forEach(r => {
       (r.top_effects || []).forEach(effect => {
-        counts[effect] = (counts[effect] ?? 0) + 1;
+        const label = EFFECT_LABELS[effect] ?? EFFECT_NORMALIZED[normalizeLabel(effect)] ?? effect;
+        counts[label] = (counts[label] ?? 0) + 1;
       });
     });
     return Object.entries(counts)
-      .map(([name, count]) => ({ name: EFFECT_LABELS[name] ?? name, count }))
+      .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
   }, [responses]);
 
@@ -75,11 +88,12 @@ export default function Dashboard() {
     const counts: Record<string, number> = {};
     responses.forEach(r => {
       (r.relevant_actors || []).forEach(actor => {
-        counts[actor] = (counts[actor] ?? 0) + 1;
+        const label = ACTOR_LABELS[actor] ?? ACTOR_NORMALIZED[normalizeLabel(actor)] ?? actor;
+        counts[label] = (counts[label] ?? 0) + 1;
       });
     });
     return Object.entries(counts)
-      .map(([name, count]) => ({ name: ACTOR_LABELS[name] ?? name, count }))
+      .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
   }, [responses]);
 
