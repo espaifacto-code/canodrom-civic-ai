@@ -43,4 +43,6 @@ export interface CivicRecord {
   status: string | null;
   top_effects: { name: string; count: number }[] | null;
   top_actors: { name: string; count: number }[] | null;
+  image_url: string | null;
+  image_prompt: string | null;
 }
