@@ -2,12 +2,12 @@ import { useState, useEffect } from "react";
 import { useCivicRecords } from "@/hooks/useCivicRecords";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { CivicRecord, Proposal, ProposalScore } from "@/types/civic";
+import type { CivicRecord, Proposal, ProposalScore, DocumentContent } from "@/types/civic";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   CheckCircle2, AlertCircle, Clock, Users, Lightbulb,
-  Target, ArrowRight, Sparkles, Trash2,
+  Target, ArrowRight, Sparkles, Trash2, Printer,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -116,6 +116,87 @@ function ProposalCard({ proposal, score, index }: {
             ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── A4 Document ─────────────────────────────────────────────── */
+function A4Document({ data }: { data: DocumentContent }) {
+  const handlePrint = () => {
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html><head>
+<title>Documento A4</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: white; color: black; }
+  .page { width: 210mm; min-height: 297mm; padding: 20mm 18mm; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 20px; }
+  h1 { font-size: 26pt; font-weight: 900; text-transform: uppercase; line-height: 1.1; }
+  .emoji-big { font-size: 64pt; line-height: 1; }
+  .invite { font-size: 11pt; line-height: 1.6; max-width: 380px; }
+  .proposals { width: 100%; text-align: left; margin-top: 8px; }
+  .proposals-title { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: 3px; border-bottom: 2px solid black; padding-bottom: 6px; margin-bottom: 16px; }
+  .proposal { display: flex; gap: 14px; margin-bottom: 14px; align-items: flex-start; }
+  .p-emoji { font-size: 22pt; line-height: 1; }
+  .p-title { font-size: 12pt; font-weight: 700; margin-bottom: 2px; }
+  .p-summary { font-size: 10pt; color: #444; line-height: 1.4; }
+  .footer { margin-top: auto; font-size: 8pt; color: #aaa; }
+  @media print { @page { size: A4; margin: 0; } }
+</style>
+</head><body><div class="page">
+  <h1>${data.title}</h1>
+  <div class="emoji-big">${data.emoji}</div>
+  <p class="invite">${data.invite_text}</p>
+  <div class="proposals">
+    <p class="proposals-title">Nuestras propuestas</p>
+    ${data.proposals.map(p => `
+    <div class="proposal">
+      <span class="p-emoji">${p.emoji}</span>
+      <div>
+        <p class="p-title">${p.title}</p>
+        <p class="p-summary">${p.summary}</p>
+      </div>
+    </div>`).join("")}
+  </div>
+  <p class="footer">Canodrom · Workshop Civic · Barcelona</p>
+</div>
+<script>window.onload = () => window.print();</script>
+</body></html>`);
+    win.document.close();
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Documento A4</p>
+        <button
+          onClick={handlePrint}
+          className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 border border-blue-200 rounded-lg px-3 py-1.5 hover:bg-blue-50 transition-colors"
+        >
+          <Printer className="h-3.5 w-3.5" />
+          Descargar PDF
+        </button>
+      </div>
+      <div className="rounded-2xl overflow-hidden border shadow-md bg-white text-black">
+        <div className="p-6 flex flex-col items-center text-center gap-3" style={{ aspectRatio: "210/297" }}>
+          <h2 className="text-lg font-black uppercase leading-tight">{data.title}</h2>
+          <div className="text-5xl">{data.emoji}</div>
+          <p className="text-xs leading-relaxed max-w-[200px]">{data.invite_text}</p>
+          <div className="w-full text-left space-y-2 mt-1">
+            <p className="text-[9px] font-bold uppercase tracking-widest border-b border-black pb-1">Nuestras propuestas</p>
+            {data.proposals.map((p, i) => (
+              <div key={i} className="flex items-start gap-1.5">
+                <span className="text-base">{p.emoji}</span>
+                <div>
+                  <p className="font-bold text-[10px]">{p.title}</p>
+                  <p className="text-[9px] text-gray-500 leading-snug">{p.summary}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-[8px] text-gray-300 mt-auto">Canodrom · Workshop Civic · Barcelona</p>
+        </div>
       </div>
     </div>
   );
@@ -247,19 +328,29 @@ function RecordView({ record }: { record: CivicRecord }) {
           </div>
         </div>
 
-        {/* ── Generated image (standalone, if no hero image area) ── */}
-        {record.image_url && (
+        {/* ── Generated images ──────────────────────────────── */}
+        {(record.image_url || record.document_content) && (
           <div>
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-blue-500" />
-              Imagen generada por IA
+              Material generado por IA
             </h2>
-            <div className="rounded-2xl overflow-hidden border shadow-md max-w-2xl">
-              <img src={record.image_url} alt="Imagen generada" className="w-full" />
-              {record.image_prompt && (
-                <div className="px-4 py-3 bg-slate-50 dark:bg-slate-900">
-                  <p className="text-xs text-muted-foreground italic">{record.image_prompt}</p>
+            <div className="grid gap-5 md:grid-cols-2">
+              {record.image_url && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Post Instagram</p>
+                  <a href={record.image_url} target="_blank" rel="noopener noreferrer" className="group">
+                    <div className="rounded-2xl overflow-hidden border shadow-md transition-shadow group-hover:shadow-lg">
+                      <img src={record.image_url} alt="Post Instagram" className="w-full" />
+                    </div>
+                  </a>
+                  {record.image_prompt && (
+                    <p className="text-xs text-muted-foreground italic px-1">{record.image_prompt}</p>
+                  )}
                 </div>
+              )}
+              {record.document_content && (
+                <A4Document data={record.document_content} />
               )}
             </div>
           </div>

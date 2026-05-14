@@ -23,6 +23,13 @@ export interface EthicalIssue {
   detail: string;
 }
 
+export interface DocumentContent {
+  title: string;
+  emoji: string;
+  invite_text: string;
+  proposals: { emoji: string; title: string; summary: string }[];
+}
+
 export interface CivicRecord {
   id: string;
   created_at: string;
@@ -45,4 +52,5 @@ export interface CivicRecord {
   top_actors: { name: string; count: number }[] | null;
   image_url: string | null;
   image_prompt: string | null;
+  document_content: DocumentContent | null;
 }
