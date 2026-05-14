@@ -56,6 +56,25 @@ const EFFECT_COLORS: Record<string, string> = {
 
 const BAR_COLORS = ["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#06b6d4","#f97316","#22c55e","#ec4899","#6366f1"];
 
+const ACTOR_LABELS: Record<string, string> = {
+  "Administración": "Administración",
+  "Empresas": "Empresas",
+  "Ciudadanía": "Ciudadanía",
+  "Academia": "Academia",
+};
+
+function normalizeLabel(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+}
+
+const ACTOR_NORMALIZED = Object.fromEntries(
+  Object.entries(ACTOR_LABELS).map(([k, v]) => [normalizeLabel(k), v])
+);
+
+const EFFECT_NORMALIZED = Object.fromEntries(
+  Object.entries(EFFECT_LABELS).map(([k, v]) => [normalizeLabel(k), v])
+);
+
 // ── Aggregate charts ──────────────────────────────────────────────────────────
 
 function AggregateCharts({ responses }: { responses: any[] }) {
@@ -63,15 +82,19 @@ function AggregateCharts({ responses }: { responses: any[] }) {
 
   const effectsData = useMemo(() => {
     const c: Record<string, number> = {};
-    responses.forEach(r => (r.top_effects || []).forEach((e: string) => { c[e] = (c[e] ?? 0) + 1; }));
-    return Object.entries(c)
-      .map(([name, count]) => ({ name: EFFECT_LABELS[name] ?? name, count }))
-      .sort((a, b) => b.count - a.count);
+    responses.forEach(r => (r.top_effects || []).forEach((e: string) => {
+      const label = EFFECT_LABELS[e] ?? EFFECT_NORMALIZED[normalizeLabel(e)] ?? e;
+      c[label] = (c[label] ?? 0) + 1;
+    }));
+    return Object.entries(c).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
   }, [responses]);
 
   const actorsData = useMemo(() => {
     const c: Record<string, number> = {};
-    responses.forEach(r => (r.relevant_actors || []).forEach((a: string) => { c[a] = (c[a] ?? 0) + 1; }));
+    responses.forEach(r => (r.relevant_actors || []).forEach((a: string) => {
+      const label = ACTOR_LABELS[a] ?? ACTOR_NORMALIZED[normalizeLabel(a)] ?? a;
+      c[label] = (c[label] ?? 0) + 1;
+    }));
     return Object.entries(c).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
   }, [responses]);
 
