@@ -1,10 +1,13 @@
+import { useState, useEffect } from "react";
 import { useCivicRecords } from "@/hooks/useCivicRecords";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import type { CivicRecord, Proposal, ProposalScore } from "@/types/civic";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   CheckCircle2, AlertCircle, Clock, Users, Lightbulb,
-  Target, ArrowRight, Sparkles,
+  Target, ArrowRight, Sparkles, Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -319,10 +322,83 @@ function EmptyState() {
   );
 }
 
+/* ─── Record selector bar ─────────────────────────────────────── */
+function RecordSelector({
+  records,
+  selectedId,
+  onSelect,
+  onDelete,
+}: {
+  records: CivicRecord[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  if (records.length <= 1) return null;
+  return (
+    <div className="border-b bg-white dark:bg-slate-950 sticky top-16 z-40">
+      <div className="container py-2 flex items-center gap-2 overflow-x-auto">
+        <span className="text-xs font-semibold text-muted-foreground shrink-0 pr-1">
+          {records.length} runs
+        </span>
+        {records.map((r, i) => {
+          const active = r.id === selectedId;
+          return (
+            <div
+              key={r.id}
+              className={`flex items-center gap-1.5 shrink-0 rounded-lg border px-3 py-1.5 cursor-pointer transition-all ${
+                active
+                  ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
+                  : "border-slate-200 hover:border-slate-300 bg-white dark:bg-slate-900"
+              }`}
+              onClick={() => onSelect(r.id)}
+            >
+              <span className={`text-xs font-medium ${active ? "text-blue-700 dark:text-blue-300" : "text-muted-foreground"}`}>
+                #{records.length - i} · {format(new Date(r.created_at), "dd MMM HH:mm", { locale: es })}
+              </span>
+              {r.proposals?.length != null && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  {r.proposals.length}p
+                </Badge>
+              )}
+              <button
+                className="ml-1 text-slate-300 hover:text-red-500 transition-colors"
+                onClick={e => {
+                  e.stopPropagation();
+                  if (confirm("¿Eliminar este resultado?")) onDelete(r.id);
+                }}
+                aria-label="Eliminar"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Page ────────────────────────────────────────────────────── */
 export default function Results() {
   const { data: records = [], isLoading } = useCivicRecords();
-  const latest = records[0] ?? null;
+  const queryClient = useQueryClient();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const selected = selectedId
+    ? (records.find(r => r.id === selectedId) ?? records[0] ?? null)
+    : (records[0] ?? null);
+
+  // When a new record arrives and nothing is selected, auto-select latest
+  useEffect(() => {
+    if (!selectedId && records[0]) setSelectedId(records[0].id);
+  }, [records, selectedId]);
+
+  const handleDelete = async (id: string) => {
+    await supabase.from("civic_records").delete().eq("id", id);
+    queryClient.invalidateQueries({ queryKey: ["civic-records"] });
+    if (selectedId === id) setSelectedId(records.find(r => r.id !== id)?.id ?? null);
+  };
 
   if (isLoading) {
     return (
@@ -337,6 +413,16 @@ export default function Results() {
     );
   }
 
-  if (!latest) return <EmptyState />;
-  return <RecordView record={latest} />;
+  if (!selected) return <EmptyState />;
+  return (
+    <>
+      <RecordSelector
+        records={records}
+        selectedId={selected.id}
+        onSelect={setSelectedId}
+        onDelete={handleDelete}
+      />
+      <RecordView record={selected} />
+    </>
+  );
 }
