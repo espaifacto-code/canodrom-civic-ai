@@ -131,7 +131,7 @@ function A4Document({ data }: { data: DocumentContent }) {
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; background: white; color: black; }
-  .page { width: 210mm; min-height: 297mm; padding: 20mm 18mm; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 20px; }
+  .page { width: 297mm; min-height: 210mm; padding: 16mm 20mm; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px; }
   h1 { font-size: 26pt; font-weight: 900; text-transform: uppercase; line-height: 1.1; }
   .emoji-big { font-size: 64pt; line-height: 1; }
   .invite { font-size: 11pt; line-height: 1.6; max-width: 380px; }
@@ -142,7 +142,7 @@ function A4Document({ data }: { data: DocumentContent }) {
   .p-title { font-size: 12pt; font-weight: 700; margin-bottom: 2px; }
   .p-summary { font-size: 10pt; color: #444; line-height: 1.4; }
   .footer { margin-top: auto; font-size: 8pt; color: #aaa; }
-  @media print { @page { size: A4; margin: 0; } }
+  @media print { @page { size: A4 landscape; margin: 0; } }
 </style>
 </head><body><div class="page">
   <h1>${data.title}</h1>
@@ -179,7 +179,7 @@ function A4Document({ data }: { data: DocumentContent }) {
         </button>
       </div>
       <div className="rounded-2xl overflow-hidden border shadow-md bg-white text-black">
-        <div className="p-6 flex flex-col items-center text-center gap-3" style={{ aspectRatio: "210/297" }}>
+        <div className="p-6 flex flex-col items-center text-center gap-3" style={{ aspectRatio: "297/210" }}>
           <h2 className="text-lg font-black uppercase leading-tight">{data.title}</h2>
           <div className="text-5xl">{data.emoji}</div>
           <p className="text-xs leading-relaxed max-w-[200px]">{data.invite_text}</p>
